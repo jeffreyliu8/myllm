@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -97,7 +98,8 @@ fun ChatScreen(
 
     Column(
         modifier = Modifier
-            .fillMaxSize(),
+            .fillMaxSize()
+            .imePadding(),
         verticalArrangement = Arrangement.Bottom
     ) {
         // Top bar with close button
@@ -176,9 +178,7 @@ fun ChatScreen(
         }
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp, horizontal = 4.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
 
@@ -188,9 +188,10 @@ fun ChatScreen(
 
             TextField(
                 value = userMessage,
-                onValueChange = { userMessage = it
+                onValueChange = {
+                    userMessage = it
                     // Only recompute on first word or when we get a new word
-                    if (!userMessage.contains(" ") || userMessage.trim() != userMessage)  {
+                    if (!userMessage.contains(" ") || userMessage.trim() != userMessage) {
                         onChangedMessage(userMessage)
                     }
                 },
