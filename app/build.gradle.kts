@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "com.jeffreyliu.myllm"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.jeffreyliu.myllm"
-        minSdk = 31
-        targetSdk = 35
+        minSdk = 33
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -56,4 +56,6 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    implementation (libs.tasks.genai)
 }
