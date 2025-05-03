@@ -28,13 +28,13 @@ const val CHAT_SCREEN = "chat_screen"
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    private val gameViewModel: GameViewModel by viewModels()
+    private val viewModel: GameViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val uiState by gameViewModel.uiState.collectAsStateWithLifecycle()
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
             MyLLMTheme {
                 Scaffold { innerPadding ->
                     // A surface container using the 'background' color from the theme
@@ -53,7 +53,8 @@ class MainActivity : ComponentActivity() {
                         ) {
                             composable(START_SCREEN) {
                                 StartGameScreen(
-                                    onStartGameClick = {
+                                    onStartGameClick = { selectedModel ->
+                                        viewModel.setModel(selectedModel)
                                         navController.navigate(LOAD_SCREEN) {
                                             popUpTo(START_SCREEN) { inclusive = true }
                                             launchSingleTop = true

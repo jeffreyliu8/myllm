@@ -11,14 +11,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
-import com.jeffreyliu.myllm.InferenceModel
 import com.jeffreyliu.myllm.Model
 
 
 @PreviewScreenSizes
 @Composable
 internal fun StartGameScreen(
-    onStartGameClick: () -> Unit = {},
+    onStartGameClick: (Model) -> Unit = {},
 ) {
     Box(
         modifier = Modifier.fillMaxSize()
@@ -33,8 +32,7 @@ internal fun StartGameScreen(
             items(Model.entries) { model ->
                 Button(
                     onClick = {
-                        InferenceModel.model = model
-                        onStartGameClick()
+                        onStartGameClick(model)
                     },
                 ) {
                     Text(model.toString())

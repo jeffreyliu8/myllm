@@ -1,6 +1,7 @@
 package com.jeffreyliu.myllm.viewmodel
 
 import androidx.lifecycle.ViewModel
+import com.jeffreyliu.myllm.InferenceModel
 import com.jeffreyliu.myllm.Model
 import com.jeffreyliu.myllm.repository.LLMModelRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,6 +19,7 @@ class GameViewModel @Inject constructor(
 
 
     fun setModel(model: Model) {
+        InferenceModel.model = model
         _uiState.update {
             it.copy(
                 model = model,
