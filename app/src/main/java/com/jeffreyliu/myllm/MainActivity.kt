@@ -12,12 +12,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.jeffreyliu.myllm.ui.theme.MyLLMTheme
 import androidx.navigation.compose.composable
 import com.jeffreyliu.myllm.ui.screen.StartGameScreen
+import com.jeffreyliu.myllm.viewmodel.ChatViewModel
 import com.jeffreyliu.myllm.viewmodel.GameViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -51,7 +53,7 @@ class MainActivity : ComponentActivity() {
                             navController = navController,
                             startDestination = startDestination
                         ) {
-                            composable(START_SCREEN) {
+                            composable(START_SCREEN) { backStackEntry ->
                                 StartGameScreen(
                                     onStartGameClick = { selectedModel ->
                                         viewModel.setModel(selectedModel)
@@ -62,8 +64,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 )
                             }
-
-                            composable(LOAD_SCREEN) {
+                            composable(LOAD_SCREEN) { backStackEntry ->
                                 LoadingRoute(
                                     onModelLoaded = {
                                         navController.navigate(CHAT_SCREEN) {
@@ -80,8 +81,10 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
-                            composable(CHAT_SCREEN) {
+                            composable(CHAT_SCREEN) { backStackEntry ->
+                                val chatViewModel = hiltViewModel<ChatViewModel>()
                                 ChatRoute(
+                                    chatViewModel = chatViewModel,
                                     onClose = {
                                         navController.navigate(START_SCREEN) {
                                             popUpTo(LOAD_SCREEN) { inclusive = true }

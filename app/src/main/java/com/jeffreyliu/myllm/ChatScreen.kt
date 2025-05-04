@@ -1,6 +1,5 @@
 package com.jeffreyliu.myllm
 
-import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -30,8 +29,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -40,35 +37,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlinx.coroutines.flow.StateFlow
+import com.jeffreyliu.myllm.viewmodel.ChatViewModel
 
 @Composable
 internal fun ChatRoute(
+    chatViewModel: ChatViewModel = hiltViewModel(),
     onClose: () -> Unit
 ) {
-    val context = LocalContext.current.applicationContext
-    val chatViewModel: ChatViewModel = viewModel(factory = ChatViewModel.getFactory(context))
+    val uiState by chatViewModel.chatScreenUiState.collectAsStateWithLifecycle()
 
-    // Reset InferenceModel when entering ChatScreen
-    LaunchedEffect(Unit) {
-        val inferenceModel = InferenceModel.getInstance(context)
-        chatViewModel.resetInferenceModel(inferenceModel)
-    }
-
-    val uiState by chatViewModel.uiState.collectAsStateWithLifecycle()
-    val textInputEnabled by chatViewModel.isTextInputEnabled.collectAsStateWithLifecycle()
     ChatScreen(
-        context,
-        uiState,
-        textInputEnabled,
-        remainingTokens = chatViewModel.tokensRemaining,
+        model = uiState.model,
+        uiState = uiState.uiState,
+        uiState.textInputEnabled,
+        remainingTokens = uiState.tokensRemaining,
         resetTokenCount = {
             chatViewModel.recomputeSizeInTokens("")
         },
@@ -78,23 +66,30 @@ internal fun ChatRoute(
         onChangedMessage = { message ->
             chatViewModel.recomputeSizeInTokens(message)
         },
-        onClose = onClose
+        onClose = onClose,
+        onInferenceModelInstanceResetSession = {
+            chatViewModel.onInferenceModelInstanceResetSession()
+        },
+        onInferenceModelInstanceCloseSession = {
+            chatViewModel.onInferenceModelInstanceCloseSession()
+        },
     )
 }
 
 @Composable
 fun ChatScreen(
-    context: Context,
+    model: Model,
     uiState: UiState,
     textInputEnabled: Boolean,
-    remainingTokens: StateFlow<Int>,
+    remainingTokens: Int,
     resetTokenCount: () -> Unit,
     onSendMessage: (String) -> Unit,
     onChangedMessage: (String) -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onInferenceModelInstanceResetSession: () -> Unit = { },
+    onInferenceModelInstanceCloseSession: () -> Unit = { },
 ) {
     var userMessage by rememberSaveable { mutableStateOf("") }
-    val tokens by remainingTokens.collectAsState(initial = -1)
 
     Column(
         modifier = Modifier
@@ -111,18 +106,18 @@ fun ChatScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = InferenceModel.model.toString(),
+                text = model.toString(),
                 style = MaterialTheme.typography.titleSmall
             )
             Text(
-                text = if (tokens >= 0) "$tokens ${stringResource(R.string.tokens_remaining)}" else "",
+                text = if (remainingTokens >= 0) "$remainingTokens ${stringResource(R.string.tokens_remaining)}" else "",
                 style = MaterialTheme.typography.titleSmall
             )
             // Wrap the buttons in another Row to keep them together
             Row {
                 IconButton(
                     onClick = {
-                        InferenceModel.getInstance(context).resetSession()
+                        onInferenceModelInstanceResetSession()
                         uiState.clearMessages()
                         resetTokenCount()
                     },
@@ -133,7 +128,7 @@ fun ChatScreen(
 
                 IconButton(
                     onClick = {
-                        InferenceModel.getInstance(context).close()
+                        onInferenceModelInstanceCloseSession()
                         uiState.clearMessages()
                         resetTokenCount()
                         onClose()
@@ -145,7 +140,7 @@ fun ChatScreen(
             }
         }
 
-        if (tokens == 0) {
+        if (remainingTokens == 0) {
             // Show warning label that context is full
             Row(
                 modifier = Modifier
@@ -223,7 +218,7 @@ fun ChatScreen(
                     .align(Alignment.CenterVertically)
                     .fillMaxWidth()
                     .weight(0.15f),
-                enabled = textInputEnabled && tokens > 0
+                enabled = textInputEnabled && remainingTokens > 0
             ) {
                 Icon(
                     Icons.AutoMirrored.Default.Send,
