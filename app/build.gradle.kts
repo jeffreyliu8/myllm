@@ -61,6 +61,7 @@ dependencies {
 
     implementation(libs.tasks.genai)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.okhttp)
     implementation(libs.androidx.security.crypto)
 
