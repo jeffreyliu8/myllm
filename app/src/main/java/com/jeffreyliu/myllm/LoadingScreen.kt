@@ -30,12 +30,16 @@ private const val UNAUTHORIZED_CODE = 401
 @Composable
 internal fun LoadingRoute(
     onModelLoaded: () -> Unit = { },
-    onGoBack: () -> Unit = {}
+    onGoBack: () -> Unit = {},
+    isInferenceModelExist: Boolean,
+    model: Model,
+    onResetInstance: () -> Unit = {},
+    modelPathFromUrl: String,
 ) {
     val context = LocalContext.current.applicationContext
     var errorMessage by remember { mutableStateOf("") }
 
-    var progress by remember { mutableStateOf(0) }
+    var progress by remember { mutableIntStateOf(0) }
     var isDownloading by remember { mutableStateOf(false) }
     var job: Job? by remember { mutableStateOf(null) }
     val client = remember { OkHttpClient() }
@@ -48,7 +52,7 @@ internal fun LoadingRoute(
             isDownloading = false
 
             CoroutineScope(Dispatchers.Main).launch {
-                deleteDownloadedFile(context)
+                deleteDownloadedFile(modelPathFromUrl)
                 withContext(Dispatchers.Main) {
                     errorMessage = "Download Cancelled"
                 }
@@ -61,17 +65,17 @@ internal fun LoadingRoute(
     LaunchedEffect(Unit) {
         job = launch(Dispatchers.IO) {
             try {
-                if (!InferenceModel.modelExists(context)) {
-                    if (InferenceModel.model.url.isEmpty()) {
-                        throw MissingUrlException("Please manually copy the model to ${InferenceModel.model.path}")
+                if (!isInferenceModelExist) {
+                    if (model.url.isEmpty()) {
+                        throw MissingUrlException("Please manually copy the model to ${model.path}")
                     }
                     isDownloading = true
-                    downloadModel(context, InferenceModel.model, client) { newProgress ->
+                    downloadModel(context, model, client, modelPathFromUrl) { newProgress ->
                         progress = newProgress
                     }
                 }
 
-                InferenceModel.resetInstance(context)
+                onResetInstance()
                 // Notify the UI that the model has finished loading
                 withContext(Dispatchers.Main) {
                     onModelLoaded()
@@ -88,12 +92,12 @@ internal fun LoadingRoute(
                 errorMessage = e.localizedMessage ?: "Unknown Error"
                 // Remove invalid model file
                 CoroutineScope(Dispatchers.Main).launch {
-                    deleteDownloadedFile(context)
+                    deleteDownloadedFile(modelPathFromUrl)
                 }
             } catch (e: Exception) {
                 val error = e.localizedMessage ?: "Unknown Error"
                 errorMessage =
-                    "${error}, please manually copy the model to ${InferenceModel.model.path}"
+                    "${error}, please manually copy the model to ${model.path}"
             } finally {
                 isDownloading = false
             }
@@ -105,7 +109,8 @@ private fun downloadModel(
     context: Context,
     model: Model,
     client: OkHttpClient,
-    onProgressUpdate: (Int) -> Unit
+    modelPathFromUrl: String,
+    onProgressUpdate: (Int) -> Unit,
 ) {
     val requestBuilder = Request.Builder().url(model.url)
 
@@ -124,7 +129,7 @@ private fun downloadModel(
 //        }
     }
 
-    val outputFile = File(InferenceModel.modelPathFromUrl(context))
+    val outputFile = File(modelPathFromUrl)
     val response = client.newCall(requestBuilder.build()).execute()
     if (!response.isSuccessful) {
         if (response.code == UNAUTHORIZED_CODE) {
@@ -160,9 +165,9 @@ private fun downloadModel(
     }
 }
 
-private suspend fun deleteDownloadedFile(context: Context) {
+private suspend fun deleteDownloadedFile(modelPathFromUrl: String) {
     withContext(Dispatchers.IO) {
-        val outputFile = File(InferenceModel.modelPathFromUrl(context))
+        val outputFile = File(modelPathFromUrl)
         if (outputFile.exists()) {
             outputFile.delete()
         }

@@ -76,7 +76,11 @@ class MainActivity : ComponentActivity() {
                                             popUpTo(LOAD_SCREEN) { inclusive = true }
                                             launchSingleTop = true
                                         }
-                                    }
+                                    },
+                                    isInferenceModelExist = viewModel.isInferenceModelExist(),
+                                    model = uiState.model,
+                                    onResetInstance = { viewModel.onResetInstance() },
+                                    modelPathFromUrl = viewModel.modelPathFromUrl(),
                                 )
                             }
 
