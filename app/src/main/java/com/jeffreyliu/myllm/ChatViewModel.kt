@@ -1,10 +1,9 @@
 package com.jeffreyliu.myllm
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.CreationExtras
+import com.jeffreyliu.myllm.repository.InferenceRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,13 +11,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 import kotlin.math.max
 
-class ChatViewModel(
-    private var inferenceModel: InferenceModel
+@HiltViewModel
+class ChatViewModel @Inject constructor(
+    private var inferenceRepository: InferenceRepository
 ) : ViewModel() {
 
-    private val _uiState: MutableStateFlow<UiState> = MutableStateFlow(inferenceModel.uiState)
+    private val _uiState: MutableStateFlow<UiState> = MutableStateFlow(inferenceRepository.uiState)
     val uiState: StateFlow<UiState> =_uiState.asStateFlow()
 
     private val _tokensRemaining = MutableStateFlow(-1)
@@ -27,9 +28,13 @@ class ChatViewModel(
     private val _textInputEnabled: MutableStateFlow<Boolean> = MutableStateFlow(true)
     val isTextInputEnabled: StateFlow<Boolean> = _textInputEnabled.asStateFlow()
 
-    fun resetInferenceModel(newModel: InferenceModel) {
-        inferenceModel = newModel
-        _uiState.value = inferenceModel.uiState
+    private val _currentModel = MutableStateFlow(inferenceRepository.currentModel)
+    val currentModel: StateFlow<Model> = _currentModel.asStateFlow()
+
+    fun resetInferenceRepository() {
+        inferenceRepository.resetModel()
+        _uiState.value = inferenceRepository.uiState
+        _currentModel.value = inferenceRepository.currentModel
     }
 
     fun sendMessage(userMessage: String) {
@@ -38,7 +43,7 @@ class ChatViewModel(
             _uiState.value.createLoadingMessage()
             setInputEnabled(false)
             try {
-                val asyncInference =  inferenceModel.generateResponseAsync(userMessage, { partialResult, done ->
+                val asyncInference = inferenceRepository.generateResponseAsync(userMessage, { partialResult, done ->
                     _uiState.value.appendMessage(partialResult, done)
                     if (done) {
                         setInputEnabled(true)  // Re-enable text input
@@ -66,16 +71,19 @@ class ChatViewModel(
     }
 
     fun recomputeSizeInTokens(message: String) {
-        val remainingTokens = inferenceModel.estimateTokensRemaining(message)
+        val remainingTokens = inferenceRepository.estimateTokensRemaining(message)
         _tokensRemaining.value = remainingTokens
     }
 
-    companion object {
-        fun getFactory(context: Context) = object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
-                val inferenceModel = InferenceModel.getInstance(context)
-                return ChatViewModel(inferenceModel) as T
-            }
-        }
+    fun resetSession() {
+        inferenceRepository.resetSession()
+        _uiState.value.clearMessages()
+        recomputeSizeInTokens("")
+    }
+
+    fun closeModel() {
+        inferenceRepository.close()
+        _uiState.value.clearMessages()
+        recomputeSizeInTokens("")
     }
 }

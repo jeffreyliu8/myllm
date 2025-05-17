@@ -1,6 +1,6 @@
 package com.jeffreyliu.myllm
 
-import android.content.Context
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -40,58 +40,59 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.StateFlow
 
 @Composable
 internal fun ChatRoute(
     onClose: () -> Unit
 ) {
-    val context = LocalContext.current.applicationContext
-    val chatViewModel: ChatViewModel = viewModel(factory = ChatViewModel.getFactory(context))
+    val chatViewModel = hiltViewModel<ChatViewModel>()
 
-    // Reset InferenceModel when entering ChatScreen
+    // Reset repository when entering ChatScreen
     LaunchedEffect(Unit) {
-        val inferenceModel = InferenceModel.getInstance(context)
-        chatViewModel.resetInferenceModel(inferenceModel)
+        chatViewModel.resetInferenceRepository()
     }
 
     val uiState by chatViewModel.uiState.collectAsStateWithLifecycle()
     val textInputEnabled by chatViewModel.isTextInputEnabled.collectAsStateWithLifecycle()
+    val currentModel by chatViewModel.currentModel.collectAsStateWithLifecycle()
     ChatScreen(
-        context,
         uiState,
         textInputEnabled,
+        currentModel.toString(),
         remainingTokens = chatViewModel.tokensRemaining,
-        resetTokenCount = {
-            chatViewModel.recomputeSizeInTokens("")
-        },
         onSendMessage = { message ->
             chatViewModel.sendMessage(message)
         },
         onChangedMessage = { message ->
             chatViewModel.recomputeSizeInTokens(message)
         },
-        onClose = onClose
+        onResetSession = {
+            chatViewModel.resetSession()
+        },
+        onCloseModel = {
+            chatViewModel.closeModel()
+            onClose()
+        }
     )
 }
 
 @Composable
 fun ChatScreen(
-    context: Context,
     uiState: UiState,
     textInputEnabled: Boolean,
+    modelName: String,
     remainingTokens: StateFlow<Int>,
-    resetTokenCount: () -> Unit,
     onSendMessage: (String) -> Unit,
     onChangedMessage: (String) -> Unit,
-    onClose: () -> Unit
+    onResetSession: () -> Unit,
+    onCloseModel: () -> Unit
 ) {
     var userMessage by rememberSaveable { mutableStateOf("") }
     val tokens by remainingTokens.collectAsState(initial = -1)
@@ -111,7 +112,7 @@ fun ChatScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = InferenceModel.model.toString(),
+                text = modelName,
                 style = MaterialTheme.typography.titleSmall
             )
             Text(
@@ -122,9 +123,7 @@ fun ChatScreen(
             Row {
                 IconButton(
                     onClick = {
-                        InferenceModel.getInstance(context).resetSession()
-                        uiState.clearMessages()
-                        resetTokenCount()
+                        onResetSession()
                     },
                     enabled = textInputEnabled
                 ) {
@@ -133,10 +132,7 @@ fun ChatScreen(
 
                 IconButton(
                     onClick = {
-                        InferenceModel.getInstance(context).close()
-                        uiState.clearMessages()
-                        resetTokenCount()
-                        onClose()
+                        onCloseModel()
                     },
                     enabled = textInputEnabled
                 ) {
@@ -235,6 +231,7 @@ fun ChatScreen(
     }
 }
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun ChatItem(
     chatMessage: ChatMessage
