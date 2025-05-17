@@ -69,7 +69,7 @@ class InferenceModel private constructor(context: Context) {
     }
 
     private fun createSession() {
-        val sessionOptions =  LlmInferenceSessionOptions.builder()
+        val sessionOptions = LlmInferenceSessionOptions.builder()
             .setTemperature(model.temperature)
             .setTopK(model.topK)
             .setTopP(model.topP)
@@ -84,7 +84,7 @@ class InferenceModel private constructor(context: Context) {
         }
     }
 
-    fun generateResponseAsync(prompt: String, progressListener: ProgressListener<String>) : ListenableFuture<String> {
+    fun generateResponseAsync(prompt: String, progressListener: ProgressListener<String>): ListenableFuture<String> {
         val formattedPrompt = model.uiState.formatPrompt(prompt)
         llmInferenceSession.addQueryChunk(formattedPrompt)
         return llmInferenceSession.generateResponseAsync(progressListener)
@@ -96,25 +96,16 @@ class InferenceModel private constructor(context: Context) {
 
         val sizeOfAllMessages = llmInferenceSession.sizeInTokens(context)
         val approximateControlTokens = uiState.messages.size * 3
-        val remainingTokens = MAX_TOKENS - sizeOfAllMessages - approximateControlTokens -  DECODE_TOKEN_OFFSET
+        val remainingTokens = MAX_TOKENS - sizeOfAllMessages - approximateControlTokens - DECODE_TOKEN_OFFSET
         // Token size is approximate so, let's not return anything below 0
         return max(0, remainingTokens)
     }
 
     companion object {
         var model: Model = Model.PHI4_CPU
-        private var instance: InferenceModel? = null
-
-        fun getInstance(context: Context): InferenceModel {
-            return if (instance != null) {
-                instance!!
-            } else {
-                InferenceModel(context).also { instance = it }
-            }
-        }
 
         fun resetInstance(context: Context): InferenceModel {
-            return InferenceModel(context).also { instance = it }
+            return InferenceModel(context)
         }
 
         fun modelPathFromUrl(context: Context): String {
